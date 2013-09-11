@@ -1,4 +1,4 @@
-git-proto
-=========
+git-net
+=======
 
-Some shared logic for the git-*-proto modules.
+JS-Git adapter to create remote instances from urls and platforms.
