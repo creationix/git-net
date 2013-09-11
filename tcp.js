@@ -17,11 +17,10 @@ module.exports = function (platform) {
 
     var connection;
 
-    return {
-      discover: discover,
-      fetch: fetch,
-      close: closeConnection,
-    };
+    opts.discover = discover;
+    opts.fetch = fetch;
+    opts.close = closeConnection;
+    return opts;
 
     function connect(callback) {
       return tcp.connect(opts.port, opts.hostname, function (err, socket) {
