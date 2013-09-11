@@ -12,6 +12,7 @@ module.exports = function (platform) {
   var pktLine = require('./pkt-line.js')(platform);
   var framer = pushToPull(pktLine.framer);
   var deframer = pushToPull(pktLine.deframer);
+  var parser = pushToPull(require('./parse-pack.js')(platform));
 
   return function (opts) {
 
@@ -59,13 +60,14 @@ module.exports = function (platform) {
       sharedDiscover(connection, callback);
     }
 
-    function fetch(opts, callback) {
-      if (!callback) return fetch.bind(this, opts);
-      discover(function (err, refs, caps) {
+    function fetch(repo, opts, callback) {
+      if (!callback) return fetch.bind(this, repo, opts);
+      if (!connection) {
+        return callback(new Error("Please connect before fetching"));
+      }
+      return sharedFetch(connection, repo, opts, function (err, packStream) {
         if (err) return callback(err);
-        opts.refs = refs;
-        opts.caps = caps;
-        sharedFetch(connection, opts, callback);
+        return callback(null, parser(packStream));
       });
     }
 

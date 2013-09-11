@@ -2,78 +2,68 @@ var writable = require('./writable.js');
 var each = require('./each.js');
 
 module.exports = fetch;
-function fetch(socket, opts, callback) {
+function fetch(socket, repo, opts, callback) {
+
   var read = socket.read,
       write = socket.write,
       abort = socket.abort;
-  var want = opts.want,
-      have = opts.have,
-      onProgress = opts.onProgress,
+  var onProgress = opts.onProgress,
       onError = opts.onError,
-      refs = opts.refs,
-      serverCaps = opts.caps,
-      agent = opts.agent;
+      wants = opts.wants,
+      caps = opts.caps;
+  var cb;
 
-  var caps = [];
-  if (serverCaps["ofs-delta"]) caps.push("ofs-delta");
-  if (serverCaps["thin-pack"]) caps.push("thin-pack");
-  if (opts.includeTag && serverCaps["include-tag"]) caps.push("include-tag");
-  if ((onProgress || onError) &&
-      (serverCaps["side-band-64k"] || serverCaps["side-band"])) {
-    caps.push(serverCaps["side-band-64k"] ? "side-band-64k" : "side-band");
-    if (!onProgress && serverCaps["no-progress"]) {
-      caps.push("no-progress");
+  wants.map(function (hash, i) {
+    if (i) {
+      return "want " + hash + "\n";
     }
-  }
-  if (serverCaps.agent) caps.push("agent=" + agent);
-
-  if (want) throw new Error("TODO: Implement dynamic wants");
-  if (have) throw new Error("TODO: Implement dynamic have");
-
-  var wants = [];
-  each(refs, function (name, hash) {
-    if (name === "HEAD" || name.indexOf('^') > 0) return;
-    wants.push("want " + hash);
-  });
-
-  wants[0] += " " + caps.join(" ");
-  wants.forEach(function (want) {
-    write(want + "\n");
-  });
+    return "want " + hash + " " + caps.join(" ") + "\n";
+  }).forEach(write);
   write(null);
-  write("done\n");
-  var packStream = writable(abort);
-
-  read(function (err, nak) {
+  return repo.listRefs(function (err, refs) {
     if (err) return callback(err);
-    if (nak.trim() !== "NAK") {
-      return callback(Error("Expected NAK"));
+    var haves = Object.keys(refs);
+    if (haves.length) {
+      haves.map(function (ref) {
+        return "have " + refs[ref] + "\n";
+      }).forEach(write);
+      write(null);
+      return read(onAck);
     }
-    callback(null, {
-      read: packStream.read,
-      abort: packStream.abort,
-      refs: refs
-    });
-    read(onItem);
+    write("done\n");
+    return read(onAck);
   });
+
+  function onAck(err, ack) {
+    if (err) return callback(err);
+    if (ack.trim() !== "NAK") write("done\n");
+    return callback(null, { read: packRead, abort: abort });
+  }
+
+  function packRead(callback) {
+    if (cb) return callback(new Error("Only one read at a time"));
+    cb = callback;
+    read(onItem);
+  }
 
   function onItem(err, item) {
-    if (err) return packStream.error(err);
+    var callback = cb;
+    if (err) {
+      cb = null;
+      return callback(err);
+    }
     if (item) {
       if (item.progress) {
         if (onProgress) onProgress(item.progress);
+        return read(onItem);
       }
-      else if (item.error) {
+      if (item.error) {
         if (onError) onError(item.error);
-      }
-      else {
-        packStream(item);
+        return read(onItem);
       }
     }
-    if (item === undefined) {
-      packStream(undefined);
-    }
-    else read(onItem);
+    cb = null;
+    return callback(null, item);
   }
 
 }
