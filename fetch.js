@@ -48,7 +48,7 @@ function fetch(socket, repo, opts, callback) {
 
   function onItem(err, item) {
     var callback = cb;
-    if (err) {
+    if (item === undefined) {
       cb = null;
       return callback(err);
     }
@@ -62,6 +62,7 @@ function fetch(socket, repo, opts, callback) {
         return read(onItem);
       }
     }
+    if (!item) return read(onItem);
     cb = null;
     return callback(null, item);
   }
