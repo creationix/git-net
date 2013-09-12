@@ -9,6 +9,9 @@ function discover(socket, callback) {
 
   function onLine(err, line) {
     if (err) return callback(err);
+    if (/^ERR \n/.test(line)) {
+      return callback(new Error(line.substr(5).trim()));
+    }
     if (line === null) {
       return callback(null, refs, caps);
     }

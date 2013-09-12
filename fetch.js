@@ -1,5 +1,3 @@
-var writable = require('./writable.js');
-var each = require('./each.js');
 
 module.exports = fetch;
 function fetch(socket, repo, opts, callback) {
@@ -25,7 +23,7 @@ function fetch(socket, repo, opts, callback) {
     return "want " + hash + " " + caps.join(" ") + "\n";
   }).forEach(write);
   write(null);
-  return repo.listRefs(function (err, refs) {
+  return repo.listRefs("refs", function (err, refs) {
     if (err) return callback(err);
     var haves = Object.keys(refs);
     if (haves.length) {
