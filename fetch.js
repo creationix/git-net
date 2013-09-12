@@ -13,6 +13,11 @@ function fetch(socket, repo, opts, callback) {
       caps = opts.caps;
   var cb;
 
+  if (!wants.length) {
+    write(null);
+    write("done\n");
+    return callback();
+  }
   wants.map(function (hash, i) {
     if (i) {
       return "want " + hash + "\n";

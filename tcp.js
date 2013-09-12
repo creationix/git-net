@@ -1,19 +1,17 @@
-var writable = require('./writable.js');
-var sharedFetch = require('./fetch.js');
-var sharedDiscover = require('./discover.js');
-var pushToPull = require('push-to-pull');
-
-// opts.hostname - host to connect to (github.com)
-// opts.pathname - path to repo (/creationix/conquest.git)
-// opts.port - override default port (9418)
 module.exports = function (platform) {
+  var writable = require('./writable.js');
+  var sharedFetch = require('./fetch.js');
+  var sharedDiscover = require('./discover.js');
+  var pushToPull = require('push-to-pull');
   var tcp = platform.tcp;
   var trace = platform.trace;
   var pktLine = require('./pkt-line.js')(platform);
   var framer = pushToPull(pktLine.framer);
   var deframer = pushToPull(pktLine.deframer);
-  var parser = pushToPull(require('./parse-pack.js')(platform));
 
+  // opts.hostname - host to connect to (github.com)
+  // opts.pathname - path to repo (/creationix/conquest.git)
+  // opts.port - override default port (9418)
   return function (opts) {
 
     var connection;
@@ -67,7 +65,7 @@ module.exports = function (platform) {
       }
       return sharedFetch(connection, repo, opts, function (err, packStream) {
         if (err) return callback(err);
-        return callback(null, parser(packStream));
+        return callback(null, packStream);
       });
     }
 
