@@ -1,6 +1,7 @@
 module.exports = function (platform) {
   var writable = require('./writable.js');
   var sharedDiscover = require('./discover.js');
+  var sharedFetch = require('./fetch.js');
   var pushToPull = require('push-to-pull');
   var pktLine = require('./pkt-line.js')(platform);
   var framer = pushToPull(pktLine.framer);
@@ -24,7 +25,56 @@ module.exports = function (platform) {
     opts.fetch = fetch;
     opts.close = closeConnection;
 
+    var write, read, abort, cb, error, pathname, headers;
+
     return opts;
+
+    function connect() {
+      write = writable();
+      var output = write;
+      if (trace) output = trace("output", output);
+      output = framer(output);
+      read = null;
+      abort = null;
+      post(pathname, headers, output, onResponse);
+    }
+
+    function onResponse(err, code, headers, body) {
+      if (err) return onError(err);
+      if (code !== 200) return onError(new Error("Unexpected status code " + code));
+      if (headers['content-type'] !== 'application/x-git-upload-pack-result') {
+        return onError(new Error("Wrong content-type in server response"));
+      }
+      body = deframer(body);
+      if (trace) body = trace("input", body);
+      read = body.read;
+      abort = body.abort;
+
+      if (cb) {
+        var callback = cb;
+        cb = null;
+        return read(callback);
+      }
+    }
+
+    function onError(err) {
+      if (cb) {
+        var callback = cb;
+        cb = null;
+        return callback(err);
+      }
+      error = err;
+    }
+
+    function enqueue(callback) {
+      if (error) {
+        var err = error;
+        error = null;
+        return callback(err);
+      }
+      cb = callback;
+    }
+
 
     function addDefaults(extras) {
 
@@ -55,9 +105,9 @@ module.exports = function (platform) {
         auth: opts.auth,
         path: opts.pathname + path,
         headers: addDefaults(headers)
-      }, onResponse);
+      }, onGet);
 
-      function onResponse(err, code, responseHeaders, body) {
+      function onGet(err, code, responseHeaders, body) {
         if (err) return callback(err);
         if (code === 301) {
           var uri = urlParse(responseHeaders.location);
@@ -154,88 +204,38 @@ module.exports = function (platform) {
 
     function fetch(repo, opts, callback) {
       if (!callback) return fetch.bind(this, repo, opts);
-      var onProgress = opts.onProgress,
-          onError = opts.onError,
-          wants = opts.wants,
-          caps = opts.caps;
-
-      if (!wants.length) return callback();
-
-      var write = writable();
-      var output = {
-        read: write.read,
-        abort: write.abort
-      };
-      if (trace) output = trace("output", output);
-      output = framer(output);
-
-      post("/git-upload-pack", {
+      pathname = "/git-upload-pack";
+      headers = {
         "Content-Type": "application/x-git-upload-pack-request",
         "Accept": "application/x-git-upload-pack-result",
-      }, output, onResponse);
+      };
 
-      wants.map(function (hash, i) {
-        if (i) {
-          return "want " + hash + "\n";
-        }
-        return "want " + hash + " " + caps.join(" ") + "\n";
-      }).forEach(write);
-      write(null);
-      return repo.listRefs("refs", function (err, refs) {
-        if (err) return callback(err);
-        var haves = Object.keys(refs);
-        if (haves.length) {
-          haves.map(function (ref) {
-            return "have " + refs[ref] + "\n";
-          }).forEach(write);
-        }
-        write("done\n");
+      return sharedFetch({
+        read: resRead,
+        abort: resAbort,
+        write: resWrite
+      }, repo, opts, callback);
+    }
+
+    function resRead(callback) {
+      if (read) return read(callback);
+      return enqueue(callback);
+    }
+
+    function resAbort(callback) {
+      if (abort) return abort(callback);
+      return callback();
+    }
+
+    function resWrite(line) {
+      if (!write) connect();
+      if (line === "done\n") {
+        write(line);
         write();
-      });
-
-      function onResponse(err, code, headers, body) {
-        if (err) return callback(err);
-        if (code !== 200) return callback(new Error("Unexpected status code " + code));
-        if (headers['content-type'] !== 'application/x-git-upload-pack-result') {
-          return callback(new Error("Wrong content-type in server response"));
-        }
-        body = deframer(body);
-        var cb;
-        if (trace) body = trace("input", body);
-        var read = body.read;
-        return read(onAck);
-
-        function onAck(err, ack) {
-          if (err) return callback(err);
-          return callback(null, { read: packRead, abort: body.abort });
-        }
-
-        function packRead(callback) {
-          if (cb) return callback(new Error("Only one read at a time"));
-          cb = callback;
-          read(onItem);
-        }
-
-        function onItem(err, item) {
-          var callback = cb;
-          if (item === undefined) {
-            cb = null;
-            return callback(err);
-          }
-          if (item) {
-            if (item.progress) {
-              if (onProgress) onProgress(item.progress);
-              return read(onItem);
-            }
-            if (item.error) {
-              if (onError) onError(item.error);
-              return read(onItem);
-            }
-          }
-          if (!item) return read(onItem);
-          cb = null;
-          return callback(null, item);
-        }
+        write = null;
+      }
+      else {
+        write(line);
       }
     }
 
