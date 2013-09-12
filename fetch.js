@@ -25,12 +25,7 @@ function fetch(socket, repo, opts, callback) {
 
     // want-list
     for (var i = 0, l = wants.length; i < l; ++i) {
-      if (i === 0) {
-        write("want " + wants[i] + " " + caps.join(" ") + "\n");
-      }
-      else {
-        write("want " + wants[i] + "\n");
-      }
+      write("want " + wants[i] + (i === 0 ? " " + caps.join(" ") : "") + "\n");
     }
     write(null);
 
