@@ -11,42 +11,64 @@ function fetch(socket, repo, opts, callback) {
       caps = opts.caps;
   var cb;
 
+
   if (!wants.length) {
     write(null);
     write("done\n");
     return callback();
   }
-  wants.map(function (hash, i) {
-    if (i) {
-      return "want " + hash + "\n";
-    }
-    return "want " + hash + " " + caps.join(" ") + "\n";
-  }).forEach(write);
-  write(null);
-  return repo.listRefs("refs", function (err, refs) {
-    if (err) return callback(err);
-    var haves = Object.keys(refs);
-    if (haves.length) {
-      haves.map(function (ref) {
-        return "have " + refs[ref] + "\n";
-      }).forEach(write);
-      write(null);
-      return read(onAck);
-    }
-    write("done\n");
-    return read(onAck);
-  });
 
-  function onAck(err, ack) {
+  return repo.listRefs("refs", onRefs);
+
+  function onRefs(err, refs) {
     if (err) return callback(err);
-    if (ack.trim() !== "NAK") write("done\n");
-    return callback(null, { read: packRead, abort: abort });
+
+    // want-list
+    for (var i = 0, l = wants.length; i < l; ++i) {
+      if (i === 0) {
+        write("want " + wants[i] + " " + caps.join(" ") + "\n");
+      }
+      else {
+        write("want " + wants[i] + "\n");
+      }
+    }
+    write(null);
+
+    // have-list
+    for (var ref in refs) {
+      write("have " + refs[ref] + "\n");
+    }
+
+    // compute-end
+    write("done\n");
+    return read(onResponse);
+  }
+
+  function onResponse(err, resp) {
+    if (err) return callback(err);
+    if (resp === undefined) return callback(new Error("Server disconnected"));
+    if (resp === null) return read(onResponse);
+    var match = resp.match(/^([^ \n]*)(?: (.*))?/);
+    var command = match[1];
+    var value = match[2];
+    if (command === "shallow") {
+      return repo.createRef("shallow", value, onShallow);
+    }
+    if (command === "NAK" || command === "ACK") {
+      return callback(null, { read: packRead, abort: abort });
+    }
+    return callback(new Error("Unknown command " + command + " " + value));
+  }
+
+  function onShallow(err) {
+    if (err) return callback(err);
+    return read(onResponse);
   }
 
   function packRead(callback) {
     if (cb) return callback(new Error("Only one read at a time"));
     cb = callback;
-    read(onItem);
+    return read(onItem);
   }
 
   function onItem(err, item) {
@@ -69,5 +91,4 @@ function fetch(socket, repo, opts, callback) {
     cb = null;
     return callback(null, item);
   }
-
 }
