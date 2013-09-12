@@ -63,10 +63,7 @@ module.exports = function (platform) {
       if (!connection) {
         return callback(new Error("Please connect before fetching"));
       }
-      return sharedFetch(connection, repo, opts, function (err, packStream) {
-        if (err) return callback(err);
-        return callback(null, packStream);
-      });
+      return sharedFetch(connection, repo, opts, callback);
     }
 
     function closeConnection(callback) {

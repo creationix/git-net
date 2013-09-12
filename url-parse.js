@@ -1,7 +1,7 @@
 module.exports = urlParse;
 
 function urlParse(href) {
-  var protocol, user, pass, hostname, port, pathname, search, hash;
+  var protocol, username, password, hostname, port, pathname, search, hash;
   var match, host, path;
   // Match URL style remotes
   if (match = href.match(/^(?:(wss?:|https?:|git:|ssh:)\/\/)([^\/]+)([^:]+)$/)) {
@@ -9,8 +9,8 @@ function urlParse(href) {
     host = match[2];
     path = match[3];
     match = host.match(/^(?:([^@:]+)(?::([^@]+))?@)?([^@:]+)(?::([0-9]+))?$/);
-    user = match[1];
-    pass = match[2];
+    username = match[1];
+    password = match[2];
     hostname = match[3];
     port = match[4];
     match = path.match(/^([^?]*)(\?[^#]*)?(#.*)?$/);
@@ -22,7 +22,7 @@ function urlParse(href) {
   // Match scp style ssh remotes
   else if (match = href.match(/^(?:([^@]+)@)?([^:\/]+)([:\/][^:\/][^:]+)$/)) {
     protocol = "ssh:";
-    user = match[1];
+    username = match[1];
     host = hostname = match[2];
     pathname = match[3];
     if (pathname[0] === ":") pathname = pathname.substr(1);
@@ -41,8 +41,16 @@ function urlParse(href) {
     href: href,
     protocol: protocol
   };
-  if (user) opt.user = user;
-  if (pass) opt.pass = pass;
+  if (username) {
+    opt.username = username;
+    if (password) {
+      opt.password = password;
+      opt.auth = username + ":" + password;
+    }
+    else {
+      opt.auth = username;
+    }
+  }
   opt.host = host;
   opt.hostname = hostname;
   opt.port = port;
