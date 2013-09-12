@@ -27,10 +27,19 @@ module.exports = function (platform) {
     return opts;
 
     function addDefaults(extras) {
+
       var headers = {
         "User-Agent": agent,
         "Host": opts.hostname,
       };
+
+      // Hack to workaround gist bug.
+      // https://github.com/creationix/js-git/issues/25
+      if (opts.hostname === "gist.github.com") {
+        headers["User-Agent"] = "git/1.8.1.2";
+        headers["X-Real-User-Agent"] = agent;
+      }
+
       for (var key in extras) {
         headers[key] = extras[key];
       }
