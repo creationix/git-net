@@ -8,6 +8,7 @@ function fetch(socket, repo, opts, callback) {
   var onProgress = opts.onProgress,
       onError = opts.onError,
       wants = opts.wants,
+      depth = opts.depth,
       caps = opts.caps;
   var cb;
 
@@ -25,6 +26,9 @@ function fetch(socket, repo, opts, callback) {
     // want-list
     for (var i = 0, l = wants.length; i < l; ++i) {
       write("want " + wants[i] + (i === 0 ? " " + caps.join(" ") : "") + "\n");
+    }
+    if (depth) {
+      write("deepen " + depth + "\n");
     }
     write(null);
 
