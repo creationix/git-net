@@ -11,7 +11,6 @@ function fetch(socket, repo, opts, callback) {
       caps = opts.caps;
   var cb;
 
-
   if (!wants.length) {
     write(null);
     write("done\n");
