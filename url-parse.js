@@ -24,7 +24,7 @@ function urlParse(href) {
     protocol = "ssh:";
     username = match[1];
     host = hostname = match[2];
-    pathname = match[3];
+    path = pathname = match[3];
     if (pathname[0] === ":") pathname = pathname.substr(1);
   }
   else {
@@ -54,6 +54,7 @@ function urlParse(href) {
   opt.host = host;
   opt.hostname = hostname;
   opt.port = port;
+  opt.path = path;
   opt.pathname = pathname;
   if (search) opt.search = search;
   if (hash) opt.hash = hash;

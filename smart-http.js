@@ -47,7 +47,7 @@ module.exports = function (platform) {
     }
 
     function get(path, headers, callback) {
-      http.request({
+      return http.request({
         method: "GET",
         hostname: opts.hostname,
         tls: opts.tls,
@@ -55,7 +55,22 @@ module.exports = function (platform) {
         auth: opts.auth,
         path: opts.pathname + path,
         headers: addDefaults(headers)
-      }, callback);
+      }, onResponse);
+
+      function onResponse(err, code, responseHeaders, body) {
+        if (err) return callback(err);
+        if (code === 301) {
+          var uri = urlParse(responseHeaders.location);
+          opts.protocol = uri.protocol;
+          opts.hostname = uri.hostname;
+          opts.tls = uri.protocol === "https:";
+          opts.port = uri.port;
+          opts.auth = uri.auth;
+          opts.pathname = uri.path.replace(path, "");
+          return get(path, headers, callback);
+        }
+        return callback(err, code, responseHeaders, body);
+      }
     }
 
     function buffer(body, callback) {
