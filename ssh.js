@@ -77,7 +77,8 @@ module.exports = function (platform) {
     function closeConnection(callback) {
       if (!callback) return closeConnection.bind(this);
       connection.write();
-      tunnel.close(callback);
+      tunnel.close();
+      callback();
     }
 
   };
