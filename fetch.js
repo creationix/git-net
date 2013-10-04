@@ -1,4 +1,4 @@
-
+var deline = require('./deline.js');
 module.exports = fetch;
 function fetch(socket, repo, opts, callback) {
 
@@ -11,6 +11,11 @@ function fetch(socket, repo, opts, callback) {
       depth = opts.depth,
       caps = opts.caps;
   var cb;
+
+  if (opts.deline) {
+    if (onProgress) onProgress = deline(onProgress);
+    if (onError) onError = deline(onError);
+  }
 
   if (!wants.length) {
     write(null);
