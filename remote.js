@@ -4,6 +4,9 @@ module.exports = function (platform) {
   return processUrl;
   function processUrl(url) {
     var opts = urlParse(url);
+    if (opts.protocol === "file:") {
+      throw new Error("file: urls are not currently supported.");
+    }
     if (opts.protocol === "git:") {
       if (!platform.tcp) throw new Error("Platform does not support git: urls");
       tcp = tcp || require('./tcp.js')(platform);
