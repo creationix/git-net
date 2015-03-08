@@ -4,7 +4,7 @@
   "description": "JS-Git adapter to create remote instances from urls and platforms.",
   "main": "remote.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "nodeunit test/unit"
   },
   "repository": {
     "type": "git",
