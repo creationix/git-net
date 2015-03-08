@@ -21,5 +21,8 @@
   },
   "dependencies": {
     "push-to-pull": "~0.1.0"
+  },
+  "devDependencies": {
+    "nodeunit": "^0.9.1"
   }
 }
