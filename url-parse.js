@@ -1,8 +1,31 @@
 module.exports = urlParse;
 
+var kValidScheme = /^[A-Za-z][A-Za-z0-9+.-]*:\/\/$/;
+
+function urlScheme(url) {
+  var end = url.indexOf("://");
+  if (end < 0) return "";
+  return url.substring(0, end + 3);
+}
+
+function isUrl(url) {
+  return kValidScheme.test(urlScheme(url));
+}
+
 function urlParse(href) {
   var protocol, username, password, hostname, port, pathname, search, hash;
   var match, host, path;
+
+  if (!isUrl(href)) {
+    // Assume non-URLs rely on the file:// scheme
+    return {
+      href: href,
+      protocol: "file:",
+      path: href,
+      pathname: href
+    };
+  }
+
   // Match URL style remotes
   if (match = href.match(/^(?:(wss?:|https?:|git:|ssh:)\/\/)([^\/]+)([^:]+)$/)) {
     protocol = match[1],
@@ -26,6 +49,11 @@ function urlParse(href) {
     host = hostname = match[2];
     path = pathname = match[3];
     if (pathname[0] === ":") pathname = pathname.substr(1);
+  }
+  // Match explicit file:// url
+  else if (match = href.match(/^file:\/\/(.*?)$/)) {
+    protocol = "file:";
+    path = pathname = match[1];
   }
   else {
     throw new Error("Uknown URL format: " + href);
